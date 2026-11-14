@@ -177,7 +177,7 @@ jobs:
     steps:
       - name: Trigger Vercel deployment
         env:
-          VERCEL_DEPLOY_HOOK: ${{ github.ref_name == 'staging' && secrets.VERCEL_STAGING_DEPLOY_HOOK || secrets.VERCEL_PROD_DEPLOY_HOOK }}
+          VERCEL_DEPLOY_HOOK: ${{ github.ref_name == 'staging' && secrets.VERCEL_DEPLOY_HOOK_STAGING || secrets.VERCEL_DEPLOY_HOOK_PROD }}
         run: |
           if [ -z "$VERCEL_DEPLOY_HOOK" ]; then
             echo "Missing Vercel deploy hook for ${GITHUB_REF_NAME}." >&2
@@ -187,7 +187,7 @@ jobs:
 
       - name: Trigger Render deployment
         env:
-          RENDER_DEPLOY_HOOK: ${{ github.ref_name == 'staging' && secrets.RENDER_STAGING_DEPLOY_HOOK || secrets.RENDER_PROD_DEPLOY_HOOK }}
+          RENDER_DEPLOY_HOOK: ${{ github.ref_name == 'staging' && secrets.RENDER_DEPLOY_HOOK_STAGING || secrets.RENDER_DEPLOY_HOOK_PROD }}
         run: |
           if [ -z "$RENDER_DEPLOY_HOOK" ]; then
             echo "Missing Render deploy hook for ${GITHUB_REF_NAME}." >&2
@@ -197,7 +197,7 @@ jobs:
 
       - name: Wait for Render backend health check
         env:
-          RENDER_BACKEND_URL: ${{ github.ref_name == 'staging' && secrets.RENDER_STAGING_BACKEND_URL || secrets.RENDER_PROD_BACKEND_URL }}
+          RENDER_BACKEND_URL: ${{ github.ref_name == 'staging' && secrets.RENDER_BACKEND_URL_STAGING || secrets.RENDER_BACKEND_URL_PROD }}
         run: |
           if [ -z "$RENDER_BACKEND_URL" ]; then
             echo "Missing Render backend URL for ${GITHUB_REF_NAME}." >&2

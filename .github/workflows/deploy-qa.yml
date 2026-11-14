@@ -113,21 +113,21 @@ jobs:
 
       - name: Trigger Render QA deployment
         env:
-          RENDER_QA_DEPLOY_HOOK: ${{ secrets.RENDER_QA_DEPLOY_HOOK }}
+          RENDER_DEPLOY_HOOK_QA: ${{ secrets.RENDER_DEPLOY_HOOK_QA }}
         run: |
-          if [ -z "$RENDER_QA_DEPLOY_HOOK" ]; then
-            echo "Missing RENDER_QA_DEPLOY_HOOK environment secret." >&2
+          if [ -z "$RENDER_DEPLOY_HOOK_QA" ]; then
+            echo "Missing RENDER_DEPLOY_HOOK_QA secret." >&2
             exit 1
           fi
           curl --fail --silent --show-error \
-            --request POST "$RENDER_QA_DEPLOY_HOOK"
+            --request POST "$RENDER_DEPLOY_HOOK_QA"
 
       - name: Wait for Render QA backend health check
         env:
-          RENDER_QA_BACKEND_URL: ${{ secrets.RENDER_QA_BACKEND_URL }}
+          RENDER_BACKEND_URL_QA: ${{ secrets.RENDER_BACKEND_URL_QA }}
         run: |
-          if [ -z "$RENDER_QA_BACKEND_URL" ]; then
-            echo "Missing RENDER_QA_BACKEND_URL secret." >&2
+          if [ -z "$RENDER_BACKEND_URL_QA" ]; then
+            echo "Missing RENDER_BACKEND_URL_QA secret." >&2
             exit 1
           fi
           timeout=300
@@ -135,7 +135,7 @@ jobs:
           elapsed=0
           while [ "$elapsed" -lt "$timeout" ]; do
             if curl --fail --silent --connect-timeout 5 --max-time 10 \
-              "$RENDER_QA_BACKEND_URL/api/rooms" >/dev/null; then
+              "$RENDER_BACKEND_URL_QA/api/rooms" >/dev/null; then
               echo "Render QA deployment is healthy."
               exit 0
             fi
