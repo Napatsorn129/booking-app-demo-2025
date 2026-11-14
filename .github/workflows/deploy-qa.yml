@@ -102,14 +102,14 @@ jobs:
     steps:
       - name: Trigger Vercel QA deployment
         env:
-          VERCEL_QA_DEPLOY_HOOK: ${{ secrets.VERCEL_QA_DEPLOY_HOOK }}
+          VERCEL_DEPLOY_HOOK_QA: ${{ secrets.VERCEL_DEPLOY_HOOK_QA }}
         run: |
-          if [ -z "$VERCEL_QA_DEPLOY_HOOK" ]; then
-            echo "Missing VERCEL_QA_DEPLOY_HOOK secret." >&2
+          if [ -z "$VERCEL_DEPLOY_HOOK_QA" ]; then
+            echo "Missing VERCEL_DEPLOY_HOOK_QA secret." >&2
             exit 1
           fi
           curl --fail --silent --show-error \
-            --request POST "$VERCEL_QA_DEPLOY_HOOK"
+            --request POST "$VERCEL_DEPLOY_HOOK_QA"
 
       - name: Trigger Render QA deployment
         env:
