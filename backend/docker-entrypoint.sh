@@ -8,8 +8,6 @@ while ! nc -z db 5432; do
 done
 
 echo "Database is ready!"
-echo "Attempting to run Prisma migrations..."
-npx prisma db push --accept-data-loss
 
 echo "Starting application..."
 exec npm start
