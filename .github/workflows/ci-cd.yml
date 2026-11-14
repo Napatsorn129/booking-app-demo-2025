@@ -197,7 +197,7 @@ jobs:
 
       - name: Wait for Render backend health check
         env:
-          RENDER_BACKEND_URL: ${{ github.ref_name == 'staging' && secrets.RENDER_BACKEND_URL_STAGING || secrets.RENDER_BACKEND_URL_PROD }}
+          RENDER_BACKEND_URL: ${{ github.ref_name == 'staging' && secrets.RENDER_BACKEND_URL_STAGING || secrets.PROD_API_URL }}
         run: |
           if [ -z "$RENDER_BACKEND_URL" ]; then
             echo "Missing Render backend URL for ${GITHUB_REF_NAME}." >&2
