@@ -2,9 +2,9 @@ name: CI/CD Pipeline — Booking App
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, staging ]
   pull_request:
-    branches: [ main ]
+    branches: [ develop, staging, main ]
 
 env:
   NODE_VERSION: '20'
@@ -80,11 +80,22 @@ jobs:
                 create: { username: 'admin', password: hash, role: 'admin' }
               });
               await prisma.room.create({
-                data: { name: 'Test Room 101', roomType: 'Standard', capacity: 2, price: 1000 }
+                data: {
+                  name: 'Test Room 101',
+                  roomType: 'Standard',
+                  description: 'Room used by CI tests',
+                  capacity: 2,
+                  price: 1000
+                }
               });
               console.log('Seed completed');
             }
-            seed().catch(console.error).finally(() => prisma.\$disconnect());
+            seed()
+              .catch((error) => {
+                console.error(error);
+                process.exitCode = 1;
+              })
+              .finally(() => prisma.\$disconnect());
           "
 
       - name: Start backend server
@@ -154,64 +165,57 @@ jobs:
           path: frontend/dist/
 
   # ─────────────────────────────────────────────
-  # Job 3: Deploy Frontend to Vercel
-  # (เฉพาะเมื่อ push ไปที่ main เท่านั้น)
+  # Job 3: Deploy to Staging or Production
   # ─────────────────────────────────────────────
-  deploy-frontend:
-    name: Deploy Frontend → Vercel
+  deploy-environment:
+    name: Deploy to ${{ github.ref_name }}
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'staging' && 'staging' || 'production' }}
     needs: [backend-test, frontend-build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Deploy to Vercel (Production)
+      - name: Trigger Vercel deployment
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_DEPLOY_HOOK: ${{ github.ref_name == 'staging' && secrets.VERCEL_DEPLOY_HOOK_STAGING || secrets.VERCEL_DEPLOY_HOOK_PROD }}
         run: |
-          cd frontend
-          vercel --prod \
-            --token $VERCEL_TOKEN \
-            --yes
+          if [ -z "$VERCEL_DEPLOY_HOOK" ]; then
+            echo "Missing Vercel deploy hook for ${GITHUB_REF_NAME}." >&2
+            exit 1
+          fi
+          curl --fail --silent --show-error --request POST "$VERCEL_DEPLOY_HOOK"
 
-  # ─────────────────────────────────────────────
-  # Job 4: Deploy Backend to Render
-  # (เฉพาะเมื่อ push ไปที่ main เท่านั้น)
-  # ─────────────────────────────────────────────
-  deploy-backend-render:
-    name: Deploy Backend → Render
-    runs-on: ubuntu-latest
-    needs: [backend-test, frontend-build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - name: Trigger Render Deployment
+      - name: Trigger Render deployment
+        env:
+          RENDER_DEPLOY_HOOK: ${{ github.ref_name == 'staging' && secrets.RENDER_DEPLOY_HOOK_STAGING || secrets.RENDER_DEPLOY_HOOK_PROD }}
         run: |
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+            echo "Missing Render deploy hook for ${GITHUB_REF_NAME}." >&2
+            exit 1
+          fi
+          curl --fail --silent --show-error --request POST "$RENDER_DEPLOY_HOOK"
 
-      - name: Wait for Render deployment (180s)
-        run: sleep 180
-
-      - name: Health check — Backend on Render
+      - name: Wait for Render backend health check
+        env:
+          RENDER_BACKEND_URL: ${{ github.ref_name == 'staging' && secrets.RENDER_BACKEND_URL_STAGING || secrets.PROD_API_URL }}
         run: |
+          if [ -z "$RENDER_BACKEND_URL" ]; then
+            echo "Missing Render backend URL for ${GITHUB_REF_NAME}." >&2
+            exit 1
+          fi
           TIMEOUT=300
           INTERVAL=10
           ELAPSED=0
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            echo "Health check attempt... (${ELAPSED}/${TIMEOUT}s)"
-            if curl -f --connect-timeout 5 --max-time 10 "${{ secrets.RENDER_BACKEND_URL }}/api/rooms" > /dev/null 2>&1; then
-              echo "✅ Render deployment successful!"
+            echo "Health check attempt for ${GITHUB_REF_NAME}... (${ELAPSED}/${TIMEOUT}s)"
+            if curl --fail --silent --show-error --connect-timeout 5 --max-time 10 "$RENDER_BACKEND_URL/api/rooms" > /dev/null; then
+              echo "Render deployment is healthy."
               exit 0
             fi
             sleep $INTERVAL
             ELAPSED=$((ELAPSED + INTERVAL))
           done
-          echo "❌ Render health check failed after ${TIMEOUT}s"
+          echo "Render health check failed after ${TIMEOUT}s." >&2
           exit 1
 
 
